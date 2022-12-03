@@ -76,13 +76,17 @@ int main(int argc, char **argv)
             receiveBufferSize = receiveFileSize;
         }
     }
-    
+    Close(clientfd);
+
     // View the original image
     viewImageWithPath(argv[1]);
 
     // View the received image
     viewImage(data, totalSize);
 
-    Close(clientfd);
+    if(data)
+    {
+        free(data);
+    }
     exit(0);
 }

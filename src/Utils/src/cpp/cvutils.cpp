@@ -5,7 +5,7 @@
 
 using namespace cv;
 
-int convertImageDataToGrayScale(char *data, ssize_t* dataLen)
+int convertImageDataToGrayScale(char *data, ssize_t* dataLen, char* pathToSave)
 {
     Mat image = imdecode(Mat(1, *dataLen, CV_8UC1, data),IMREAD_UNCHANGED);
     if (!image.data) {
@@ -15,7 +15,7 @@ int convertImageDataToGrayScale(char *data, ssize_t* dataLen)
     
     Mat gray_image;
     cvtColor(image, gray_image, COLOR_BGR2GRAY);
-    imwrite( "./Gray_Image.jpg", gray_image );
+    imwrite( pathToSave, gray_image );
 
     return 0;
 }
