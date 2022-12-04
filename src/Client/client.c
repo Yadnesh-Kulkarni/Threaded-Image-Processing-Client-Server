@@ -6,9 +6,9 @@
 
 int main(int argc, char **argv)
 {
-    if(argc != 2)
+    if(argc != 3)
     {
-        printf("Usage : ./client <Image Path>");
+        printf("Usage : ./client <Image Path> <Operation>\n");
         return 1;
     }
 
@@ -16,7 +16,12 @@ int main(int argc, char **argv)
     char buf[10240];
     FILE *fp;
     rio_t rio;
-
+    int operation = atoi(argv[2]);
+    if(operation > 4 || operation < 1)
+    {
+        printf("Invalid operation : Refer to the list below\n1. Grayscale Conversion\n2. Color Inversion\n3. Blur\n4. Create Border\n");
+        return 1;
+    }
     // Open file to see if it exists
     fp = Fopen(argv[1], "r");
     if(fp == NULL) // File does not exist , return
@@ -39,6 +44,9 @@ int main(int argc, char **argv)
 
     // Sending File Size to Server
     Rio_writen(clientfd, &size, sizeof(size));
+
+    // Sending operation to server
+    Rio_writen(clientfd, &operation, sizeof(operation));
 
     // Send file data to server 
     while(!feof(fp)) {

@@ -11,21 +11,49 @@ static void *thread_start(void*);
 // Global array which holds handles for all threads
 pthread_t threadArray[MAX_THREADS];
 
+// Barrier
+pthread_barrier_t barrier;
+
 int main()
 {
-    int listenfd, connfd;
+    int listenfd;
     pthread_t tid;
     queue *q;
     q = qInit();
+
+    // Setting up thread priorities
+    struct sched_param param;
+    pthread_attr_t lowPriorityAttr;
+    int mainThreadPriority;
+
+    // Main thread high priority
+    param.sched_priority = sched_get_priority_max(SCHED_FIFO);
+    pthread_setschedparam(pthread_self(), SCHED_RR, &param);
+    mainThreadPriority = param.sched_priority;
+
+    // Worker threads with low priority
+    pthread_attr_init(&lowPriorityAttr); // Init with default parameters
+    pthread_attr_setinheritsched(&lowPriorityAttr, PTHREAD_EXPLICIT_SCHED);
+    pthread_attr_setschedpolicy(&lowPriorityAttr, SCHED_FIFO);
+
+    param.sched_priority = mainThreadPriority - 10;
+    if(pthread_attr_setschedparam(&lowPriorityAttr,&param))
+    {
+        printf("Unable to set priority for thread...\n");
+    }
+
+    // Done setting up thread priorities
 
     // Start worker thread pool
     int i;
     for(i = 0 ; i < MAX_THREADS; i++)
     {
-        pthread_create(&threadArray[i],NULL, thread_start, q);
+        Pthread_create(&threadArray[i],&lowPriorityAttr, thread_start, q);
     }
 
+    // Start listening
     listenfd = Open_listenfd(PORT);
+    
     while(1){
         // Allocate a ConnectionInfo struct
         ConnectionInfo *conninf = (ConnectionInfo *)Malloc(sizeof(ConnectionInfo));
@@ -40,7 +68,7 @@ int main()
         {
             // If queue is full then print a message and wait
             // Wait until some thread picks up a request from buffer and buffer is not full
-            printf("Main Thread Says : Queue is full\n");
+            printf("Main Thread Says : Queue is full : Priority - %d\n", mainThreadPriority);
             pthread_cond_wait(q->notFull, q->qMutex);
         }
         // Unlock the Mutex which was grabbed in pthread_cond_wait
@@ -60,11 +88,15 @@ static void *thread_start(void* arg)
     // Get queue which was passed as an argument
     queue* q = (queue *)arg;
     pthread_t tid = pthread_self();
-
-    Sleep(10);
+    struct sched_param param;
+    int currentThreadPriority, policy;
+    pthread_getschedparam(tid, &policy, &param);
+    currentThreadPriority = param.sched_priority;
+    
     // Run infinitely
     while(1)
     {
+        Sleep(5);
         // Grab lock so that race conditions can be prevented for queue
         pthread_mutex_lock(q->qMutex);
 
@@ -72,7 +104,7 @@ static void *thread_start(void* arg)
         while(isQEmpty(q))
         {
             // If it is empty, then wait till main thread writes a new request on buffer
-            printf("%ld Says : Queue is currently empty...\n", tid);
+            printf("Worker thread %ld Says : Queue is currently empty : Priority - %d\n", tid, currentThreadPriority);
             pthread_cond_wait(q->notEmpty, q->qMutex);
         } 
 
@@ -120,6 +152,10 @@ void processconnection(int connfd, pthread_t tid)
 	Rio_readnb(&rio,&receiveFileSize,sizeof(receiveFileSize));
     
    
+    // Get Operation Type
+    int operation;
+    Rio_readnb(&rio, &operation, sizeof(operation));
+
     // Get Data From Client
     size_t totalSize = 0;
     size_t n = 0;
@@ -139,7 +175,21 @@ void processconnection(int connfd, pthread_t tid)
 
     // Sending Image for Conversion
     // The function will also save a copy of image that can be read for further process
-    int res = convertImageDataToGrayScale(data, &totalSize, pathToSave);
+    int res = -1;
+    switch (operation)
+    {
+    case 1: res = convertImageDataToGrayScale(data, &totalSize, pathToSave);
+            break;
+    case 2: res = convertImageDataToBlur(data,&totalSize,pathToSave);
+            break;
+    case 3: res = convertImageDataToInverted(data,&totalSize,pathToSave);
+            break;
+    case 4: res = convertImageDataToBorderedImage(data,&totalSize,pathToSave);
+            break;
+    default:
+        break;
+    }
+
     if(data) // Free the buffer
     {
         free(data);

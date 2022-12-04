@@ -28,6 +28,7 @@ typedef struct queue{
 
 // Queue Functions
 queue* qInit();
+void qDestroy(queue *q);
 int qPush(queue *q, ConnectionInfo *newConnection);
 ConnectionInfo* qPop(queue *q);
 int isQEmpty(queue *q);
