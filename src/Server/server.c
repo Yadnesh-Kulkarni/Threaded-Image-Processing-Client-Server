@@ -1,46 +1,105 @@
-#include "../Utils/include/csapp.h"
-#include "../Utils/include/cvutils.h"
+#include "server.h"
 #include <pthread.h>
 
 #define PORT 8080
-
+#define MAX_THREADS 3
+// Function Declarations
 void* getfiledata(int, char*, size_t*, size_t, rio_t*);
 void processconnection(int, pthread_t);
 static void *thread_start(void*);
 
-struct ConnectionInfo{
-    int connfd;
-    struct sockaddr_storage clientAddr;
-    socklen_t clientLen;
-};
-
-
+// Global array which holds handles for all threads
+pthread_t threadArray[MAX_THREADS];
 
 int main()
 {
     int listenfd, connfd;
     pthread_t tid;
+    queue *q;
+    q = qInit();
+
+    // Start worker thread pool
+    int i;
+    for(i = 0 ; i < MAX_THREADS; i++)
+    {
+        pthread_create(&threadArray[i],NULL, thread_start, q);
+    }
 
     listenfd = Open_listenfd(PORT);
     while(1){
-        struct ConnectionInfo *conninf = (struct ConnectionInfo *)Malloc(sizeof(struct ConnectionInfo));
+        // Allocate a ConnectionInfo struct
+        ConnectionInfo *conninf = (ConnectionInfo *)Malloc(sizeof(ConnectionInfo));
         conninf->clientLen = sizeof(struct sockaddr_storage);
         conninf->connfd = Accept(listenfd, (SA *)&(conninf->clientAddr), &(conninf->clientLen));
-        Pthread_create(&tid,NULL, &thread_start, (void *)conninf);
+
+        // Grab the lock so that no one else can access queue
+        pthread_mutex_lock(q->qMutex);
+        qPush(q, conninf);
+        // Check whether the queue is full or not
+        while(isQFull(q))
+        {
+            // If queue is full then print a message and wait
+            // Wait until some thread picks up a request from buffer and buffer is not full
+            printf("Main Thread Says : Queue is full\n");
+            pthread_cond_wait(q->notFull, q->qMutex);
+        }
+        // Unlock the Mutex which was grabbed in pthread_cond_wait
+        pthread_mutex_unlock(q->qMutex);
+
+        // Signal worker threads that a new request has been added to the buffer
+        pthread_cond_signal(q->notEmpty);
     }
+
+    // Not that we will reach here
+    qDestroy(q);
     exit(0);
 }
 
 static void *thread_start(void* arg)
 {
-    char client_hostname[MAXLINE], client_port[MAXLINE];
-    struct ConnectionInfo *conninf = (struct ConnectionInfo *)arg;
-    getnameinfo((SA *)&(conninf->clientAddr), conninf->clientLen, client_hostname, MAXLINE, client_port, MAXLINE, 0);
-    printf("Connected to (%s, %s)\n", client_hostname, client_port);
-    pthread_t tid;
-    tid = pthread_self();
-    processconnection(conninf->connfd, tid);
-    Close(conninf->connfd);
+    // Get queue which was passed as an argument
+    queue* q = (queue *)arg;
+    pthread_t tid = pthread_self();
+
+    Sleep(10);
+    // Run infinitely
+    while(1)
+    {
+        // Grab lock so that race conditions can be prevented for queue
+        pthread_mutex_lock(q->qMutex);
+
+        // Once locked, check whether queue is empty
+        while(isQEmpty(q))
+        {
+            // If it is empty, then wait till main thread writes a new request on buffer
+            printf("%ld Says : Queue is currently empty...\n", tid);
+            pthread_cond_wait(q->notEmpty, q->qMutex);
+        } 
+
+        // We are here, it means queue is not empty and can be read
+        ConnectionInfo *conninf = qPop(q);
+
+        // Unlock the mutex
+        pthread_mutex_unlock(q->qMutex);
+
+        // Signal anyone waiting to on notFull
+        pthread_cond_signal(q->notFull);
+
+        // Process the client
+        processconnection(conninf->connfd, tid);
+
+        // Close connected file descriptor
+        Close(conninf->connfd);
+
+        // Free the data
+        if(conninf)
+        {
+            free(conninf);
+        }
+    }
+    // char client_hostname[MAXLINE], client_port[MAXLINE];
+    // getnameinfo((SA *)&(conninf->clientAddr), conninf->clientLen, client_hostname, MAXLINE, client_port, MAXLINE, 0);
+    // printf("Connected to (%s, %s)\n", client_hostname, client_port);
 }
 
 void processconnection(int connfd, pthread_t tid)

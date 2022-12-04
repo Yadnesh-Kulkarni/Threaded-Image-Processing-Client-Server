@@ -5,7 +5,7 @@
 
 using namespace cv;
 
-int convertImageDataToGrayScale(char *data, ssize_t* dataLen, char* pathToSave)
+int convertImageDataToGrayScale(char *data, size_t* dataLen, char* pathToSave)
 {
     Mat image = imdecode(Mat(1, *dataLen, CV_8UC1, data),IMREAD_UNCHANGED);
     if (!image.data) {
@@ -20,7 +20,7 @@ int convertImageDataToGrayScale(char *data, ssize_t* dataLen, char* pathToSave)
     return 0;
 }
 
-int viewImage(char *data, ssize_t dataLen)
+int viewImage(char *data, size_t dataLen)
 {
     Mat image = imdecode(Mat(1, dataLen, CV_8UC1, data),IMREAD_UNCHANGED);
     if (!image.data) {
