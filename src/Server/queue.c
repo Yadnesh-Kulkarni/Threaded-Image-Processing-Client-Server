@@ -1,4 +1,4 @@
-#include "server.h"
+#include "../../include/Server/server.h"
 
 queue* qInit()
 {
@@ -93,8 +93,13 @@ ConnectionInfo* qPop(queue* q)
 
     // Get element at head and move head to next pointer
     ConnectionInfo* connInfo = q->head->connInf;
+    queueNode* temp = q->head;
     q->head = q->head->next;
     q->size--;
+    if(temp)
+    {
+        free(temp);
+    }
     return connInfo;
 }
 

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <vector>
 #include <opencv2/opencv.hpp>
-#include "../../include/cvutils.h"
+#include "../../include/Utils/cvutils.h"
 
 using namespace cv;
 
@@ -29,7 +29,7 @@ int convertImageDataToBlur(char *data, size_t* dataLen, char* pathToSave)
         printf("No image data \n");
         return -1;
     }
-    
+   
     Mat processedImage;
     GaussianBlur(image, processedImage, Size(19 , 19), 0);
     imwrite( pathToSave, processedImage );
@@ -65,7 +65,6 @@ int convertImageDataToGrayScale(char *data, size_t* dataLen, char* pathToSave)
     Mat processedImage;
     cvtColor(image, processedImage, COLOR_BGR2GRAY);
     imwrite( pathToSave, processedImage );
-
     return 0;
 }
 

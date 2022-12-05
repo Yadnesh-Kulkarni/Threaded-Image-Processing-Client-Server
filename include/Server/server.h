@@ -1,7 +1,9 @@
-#include "../Utils/include/csapp.h"
-#include "../Utils/include/cvutils.h"
+#include "../Utils/csapp.h"
+#include "../Utils/cvutils.h"
 
-#define MAX_Q_SIZE 6
+#define PORT 8080
+#define MAX_THREADS 3
+#define MAX_Q_SIZE MAX_THREADS  * 2
 
 // Structure to hold connection info of client
 typedef struct ConnectionInfo{
@@ -33,6 +35,13 @@ int qPush(queue *q, ConnectionInfo *newConnection);
 ConnectionInfo* qPop(queue *q);
 int isQEmpty(queue *q);
 int isQFull(queue *q);
+
+// Utility Functions
+// Function Declarations
+void* getfiledata(int, char*, size_t*, size_t, rio_t*);
+void processconnection(int, pthread_t);
+static void *thread_start(void*);
+void delay(int);
 
 
 
