@@ -1,5 +1,6 @@
-#include "../Utils/include/csapp.h"
-#include "../Utils/include/cvutils.h"
+
+#include "../../include/Utils/csapp.h"
+#include "../../include/Utils/cvutils.h"
 
 #define HOST "127.0.0.1"
 #define PORT 8080
@@ -8,7 +9,7 @@ int main(int argc, char **argv)
 {
     if(argc != 3)
     {
-        printf("Usage : ./client <Image Path> <Operation>\n");
+        printf("Usage : ./client <Image Path> <Operation> : Refer to list below for operations : \n1. Grayscale Conversion\n2. Color Inversion\n3. Blur\n4. Create Border\n");
         return 1;
     }
 
